@@ -166,6 +166,7 @@ void Modal::updateVariants() {
 void Modal::centerCard() {
   card_->setFixedWidth(std::min(470, std::max(200, width() - 40)));
   const int controlsHeight = dealControls_->isHidden() ? 0 : dealControls_->sizeHint().height() + 16;
+  body_->setMinimumHeight(0);
   const int bodyHeight =
       std::max(30, body_->heightForWidth(card_->width() - 72));
   int visibleButtons = 0;
