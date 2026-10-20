@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Solitare
+Comment=A quiet game of Klondike
+Exec=solitare
+Icon=io.github.solitare
+Terminal=false
+Categories=Game;CardGame;
+Keywords=solitaire;klondike;cards;patience;
+StartupWMClass=io.github.solitare
