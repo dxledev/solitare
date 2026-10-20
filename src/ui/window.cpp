@@ -72,7 +72,8 @@ void Window::buildContent() {
   header->addStretch();
   undo_ = button("Undo", "undo", content_);
   header->addWidget(undo_);
-  header->addWidget(button("Hint", "hint", content_));
+  hint_ = button("Hint", "hint", content_);
+  header->addWidget(hint_);
   header->addWidget(button("How to play", "help", content_));
   header->addWidget(button("New deal", "newDeal", content_));
   layout->addLayout(header);
@@ -96,8 +97,7 @@ void Window::connectActions() {
   });
   connect(board_, &Board::message, status_, &QLabel::setText);
   connect(undo_, &QPushButton::clicked, this, &Window::undo);
-  connect(findChild<QPushButton *>("hint"), &QPushButton::clicked, board_,
-          &Board::showHint);
+  connect(hint_, &QPushButton::clicked, board_, &Board::showHint);
   connect(findChild<QPushButton *>("newDeal"), &QPushButton::clicked, this,
           [this] { openDialog(Dialog::NewGame); });
   connect(findChild<QPushButton *>("help"), &QPushButton::clicked, this,
@@ -178,6 +178,16 @@ void Window::refresh() {
       .arg(modeName(state.mode), rules).arg(state.moves).arg(seconds_ / 60)
       .arg(seconds_ % 60, 2, 10, QChar('0')).arg(progress));
   undo_->setEnabled(game_.canUndo());
+  const int undos = game_.undosLeft();
+  undo_->setText(undos > 0 ? QString("Undo (%1)").arg(undos) : "Undo");
+  const int hints = game_.hintsLeft();
+  const bool expert = state.options.difficulty == Difficulty::Expert;
+  undo_->setVisible(!expert);
+  hint_->setVisible(!expert);
+  hint_->setEnabled(hints != 0);
+  if (state.hintEarned && !hintEarned_)
+    status_->setText("You've earned a hint.");
+  hintEarned_ = state.hintEarned;
 }
 void Window::undo() {
   if (game_.undo()) {
@@ -195,6 +205,7 @@ void Window::newDeal(int drawCount) {
 void Window::newDeal(GameMode mode, const GameOptions &options) {
   game_.newGame(QRandomGenerator::global()->generate(), mode, options);
   seconds_ = 0;
+  hintEarned_ = false;
   gameFileInvalid_ = false;
   board_->resetInteraction();
   refresh();
@@ -270,6 +281,7 @@ void Window::load() {
     return;
   }
   seconds_ = qint64(elapsed);
+  hintEarned_ = game_.state().hintEarned;
   status_->setText("Your cards are right where you left them.");
 }
 void Window::resizeEvent(QResizeEvent *event) {

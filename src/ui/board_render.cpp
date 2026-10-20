@@ -32,6 +32,15 @@ void Board::paintTable(QPainter &p) {
   for (int i = 0; i < int(game_.state().tableau.size()); ++i)
     paintPile(p, {Location::Tableau, i, -1}, game_.state().tableau[i]);
   paintLabels(p);
+  if (game_.state().mode == GameMode::Klondike && game_.won()) {
+    const auto first = cardRect({Location::Tableau, 0, -1}), last = cardRect({Location::Tableau, 6, -1});
+    QFont big = font();
+    big.setPixelSize(qRound(first.width() * .45));
+    big.setBold(true);
+    p.setFont(big);
+    p.setPen(theme_.color("accent"));
+    p.drawText(QRectF(first.left(), first.bottom() + 16, last.right() - first.left(), first.width() * .7), Qt::AlignCenter, "You won!");
+  }
   if (hasFocus() && !locations.empty()) {
     const auto loc = locations[std::clamp(keyboardPile_, 0, int(locations.size()) - 1)];
     p.setBrush(Qt::NoBrush);

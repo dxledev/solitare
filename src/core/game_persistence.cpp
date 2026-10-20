@@ -59,9 +59,18 @@ bool parseOptions(const QJsonObject& json, State& result) {
         if (json.value("mode").toString() == QLatin1String(modeId(mode))) { result.mode = mode; found = true; }
     }
     const auto options = json.value("options").toObject();
-    if (!found || options.size() != 4 || !integer(options.value("drawCount"), 1, 3, result.options.drawCount) || result.options.drawCount != result.drawCount || !integer(options.value("spiderSuits"), 1, 4, result.options.spiderSuits) || result.options.spiderSuits == 3 || !integer(options.value("pyramidRedeals"), 0, 2, result.options.pyramidRedeals) || !options.value("tripeaksWraparound").isBool()) return false;
+    int difficulty = 0;
+    const bool hasDifficulty = options.contains("difficulty");
+    if (hasDifficulty && !integer(options.value("difficulty"), 0, 2, difficulty)) return false;
+    result.options.difficulty = Difficulty(difficulty);
+    if (!found || options.size() != (hasDifficulty ? 5 : 4) || !integer(options.value("drawCount"), 1, 3, result.options.drawCount) || result.options.drawCount != result.drawCount || !integer(options.value("spiderSuits"), 1, 4, result.options.spiderSuits) || result.options.spiderSuits == 3 || !integer(options.value("pyramidRedeals"), 0, 2, result.options.pyramidRedeals) || !options.value("tripeaksWraparound").isBool()) return false;
     result.options.tripeaksWraparound = options.value("tripeaksWraparound").toBool();
-    return integer(json.value("redeals"), 0, result.mode == GameMode::Pyramid ? result.options.pyramidRedeals : 0, result.redeals);
+    if (!integer(json.value("redeals"), 0, result.mode == GameMode::Pyramid ? result.options.pyramidRedeals : 0, result.redeals)) return false;
+    if (!json.contains("allowance")) return true;
+    const auto allowance = json.value("allowance").toObject();
+    if (!json.value("allowance").isObject() || allowance.size() != 3 || !integer(allowance.value("undosUsed"), 0, std::numeric_limits<int>::max(), result.undosUsed) || !allowance.value("hintEarned").isBool() || !(integer(allowance.value("hintsUsed"), 0, 2, result.hintsUsed) || (allowance.value("hintUsed").isBool() && (result.hintsUsed = allowance.value("hintUsed").toBool() ? 1 : 0, true)))) return false;
+    result.hintEarned = allowance.value("hintEarned").toBool();
+    return true;
 }
 
 bool validFoundation(const std::vector<Card>& pile, bool spider) {
@@ -107,7 +116,7 @@ bool validLayout(const State& state, const CardCounts& counts) {
 
 bool parseState(const QJsonObject& json, State& result, std::uint32_t& seed) {
     int version = 0;
-    if (!integer(json.value("version"), 1, 2, version) || json.size() != (version == 1 ? 8 : 13)) return false;
+    if (!integer(json.value("version"), 1, 2, version) || json.size() != (version == 1 ? 8 : json.contains("allowance") ? 14 : 13)) return false;
     const auto seedValue = json.value("seed");
     const double seedNumber = seedValue.toDouble(-1);
     if (!seedValue.isDouble() || !std::isfinite(seedNumber) || std::trunc(seedNumber) != seedNumber || seedNumber < 0 || seedNumber > std::numeric_limits<std::uint32_t>::max()) return false;
@@ -126,7 +135,7 @@ bool parseState(const QJsonObject& json, State& result, std::uint32_t& seed) {
 
 QJsonObject Game::toJson() const {
     const auto& options = state_.options;
-    return {{"version", 2}, {"seed", static_cast<double>(seed_)}, {"drawCount", state_.drawCount}, {"moves", state_.moves}, {"stock", cardsJson(state_.stock)}, {"waste", cardsJson(state_.waste)}, {"foundations", pilesJson(state_.foundations)}, {"tableau", pilesJson(state_.tableau)}, {"mode", modeId(state_.mode)}, {"options", QJsonObject{{"drawCount", options.drawCount}, {"spiderSuits", options.spiderSuits}, {"pyramidRedeals", options.pyramidRedeals}, {"tripeaksWraparound", options.tripeaksWraparound}}}, {"cells", pilesJson(state_.cells)}, {"removed", cardsJson(state_.removed)}, {"redeals", state_.redeals}};
+    return {{"version", 2}, {"seed", static_cast<double>(seed_)}, {"drawCount", state_.drawCount}, {"moves", state_.moves}, {"stock", cardsJson(state_.stock)}, {"waste", cardsJson(state_.waste)}, {"foundations", pilesJson(state_.foundations)}, {"tableau", pilesJson(state_.tableau)}, {"mode", modeId(state_.mode)}, {"options", QJsonObject{{"difficulty", int(options.difficulty)}, {"drawCount", options.drawCount}, {"spiderSuits", options.spiderSuits}, {"pyramidRedeals", options.pyramidRedeals}, {"tripeaksWraparound", options.tripeaksWraparound}}}, {"cells", pilesJson(state_.cells)}, {"removed", cardsJson(state_.removed)}, {"redeals", state_.redeals}, {"allowance", QJsonObject{{"undosUsed", state_.undosUsed}, {"hintEarned", state_.hintEarned}, {"hintsUsed", state_.hintsUsed}}}};
 }
 
 bool Game::restore(const QJsonObject& json) {

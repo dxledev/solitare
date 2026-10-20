@@ -325,6 +325,56 @@ private slots:
         QVERIFY(!restored.canUndo());
     }
 
+    void difficultyLimitsUndosAndHints() {
+        GameOptions options; options.difficulty = Difficulty::Standard;
+        Game game(5, GameMode::Klondike, options);
+        QCOMPARE(game.hintsLeft(), 1);
+        for (int i = 0; i < 3; ++i) { QVERIFY(game.draw()); }
+        QCOMPARE(game.undosLeft(), 2);
+        QVERIFY(game.undo()); QVERIFY(game.undo());
+        QVERIFY(!game.canUndo()); QVERIFY(!game.undo());
+        QCOMPARE(game.undosLeft(), 0);
+
+        options.difficulty = Difficulty::Expert;
+        Game expert(5, GameMode::Klondike, options);
+        QVERIFY(expert.draw()); QVERIFY(!expert.canUndo()); QCOMPARE(expert.hintsLeft(), 0);
+
+        Game casual(5, GameMode::Klondike);
+        QCOMPARE(casual.undosLeft(), -1); QCOMPARE(casual.hintsLeft(), -1);
+    }
+
+    void standardHintEarnedByAcesAndPersisted() {
+        std::array<std::vector<Card>, 4> foundations;
+        for (int suit = 0; suit < 3; ++suit) foundations[suit] = {Card{1, suit, true}};
+        auto json = savedState({Card{1, 3, true}}, foundations);
+        json["version"] = 2;
+        json["mode"] = "klondike";
+        json["options"] = QJsonObject{{"difficulty", 1}, {"drawCount", 1}, {"spiderSuits", 1}, {"pyramidRedeals", 2}, {"tripeaksWraparound", false}};
+        json["cells"] = QJsonArray{QJsonArray{}, QJsonArray{}, QJsonArray{}, QJsonArray{}};
+        json["removed"] = QJsonArray{};
+        json["redeals"] = 0;
+        Game game(8);
+        QVERIFY(game.restore(json));
+        QCOMPARE(game.state().options.difficulty, Difficulty::Standard);
+        QCOMPARE(game.hintsLeft(), 1);
+        QVERIFY(game.autoMove(Location{Location::Waste, 0, -1}));
+        QCOMPARE(game.hintsLeft(), 2);
+        QVERIFY(game.takeHint());
+        Game restored;
+        QVERIFY(restored.restore(game.toJson()));
+        QCOMPARE(restored.hintsLeft(), 1);
+        QVERIFY(restored.takeHint());
+        QCOMPARE(restored.hintsLeft(), 0);
+        QVERIFY(!restored.takeHint());
+        QVERIFY(Game().restore(restored.toJson()));
+    }
+
+    void spiderRunEarnsStandardHint() {
+        GameOptions options; options.difficulty = Difficulty::Standard;
+        Game game(3, GameMode::Spider, options);
+        QCOMPARE(game.hintsLeft(), 1);
+    }
+
     void randomLongPlayKeepsAllCards() {
         Game game(934, 3);
         std::mt19937 random(5);

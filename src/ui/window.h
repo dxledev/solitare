@@ -28,7 +28,8 @@ private:
   Modal *modal_ = nullptr;
   ThemeWatcher *watcher_;
   QLabel *details_, *status_;
-  QPushButton *undo_;
+  QPushButton *undo_, *hint_;
+  bool hintEarned_ = false;
   QTimer timer_;
   qint64 seconds_ = 0;
   bool gameFileInvalid_ = false;

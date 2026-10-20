@@ -109,7 +109,7 @@ void ThemedCombo::positionPopup() {
   const int left = std::clamp(anchor.left(), available.left(), available.right() - width + 1);
   const int top = below >= height ? anchor.bottom() + 3 : std::clamp(anchor.top() - height - 3, available.top(), available.bottom() - height + 1);
   if (popup->layout()) {
-    popup->layout()->setContentsMargins(1, 1, 1, 1);
+    popup->layout()->setContentsMargins(0, 0, 0, 0);
     popup->layout()->setSpacing(0);
   }
   view()->setFixedHeight(rows * rowHeight());

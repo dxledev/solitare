@@ -41,7 +41,7 @@ private:
   QWidget *card_;
   QLabel *title_, *body_;
   QWidget *dealControls_;
-  ThemedCombo *mode_, *variant_;
+  ThemedCombo *mode_, *variant_, *difficulty_;
   ModalMotion *motion_;
   ModalBackdrop *backdrop_ = nullptr;
   bool closing_ = false, backgroundWasEnabled_ = true;

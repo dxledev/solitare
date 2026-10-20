@@ -64,6 +64,7 @@ void Game::newGame(std::uint32_t seed, int drawCount) {
 void Game::newGame(std::uint32_t seed, GameMode mode, GameOptions options) {
     seed_ = seed;
     state_ = State{};
+    if (options.difficulty != Difficulty::Standard && options.difficulty != Difficulty::Expert) options.difficulty = Difficulty::Casual;
     options.drawCount = options.drawCount == 3 ? 3 : 1;
     if (options.spiderSuits != 2 && options.spiderSuits != 4) options.spiderSuits = 1;
     options.pyramidRedeals = std::clamp(options.pyramidRedeals, 0, 2);
@@ -76,11 +77,29 @@ void Game::newGame(std::uint32_t seed, GameMode mode, GameOptions options) {
 
 const State& Game::state() const { return state_; }
 void Game::remember() {
+    if (state_.options.difficulty == Difficulty::Expert) return;
     if (undo_.size() == 200) undo_.erase(undo_.begin());
     undo_.push_back(state_);
 }
 void Game::incrementMoves() {
     if (state_.moves < std::numeric_limits<int>::max()) ++state_.moves;
+    earnHint();
+}
+// Standard difficulty starts with one hint and earns a second through play: all four aces home
+// (Klondike, FreeCell), the first completed run (Spider) or half the board
+// cleared (Pyramid, TriPeaks).
+void Game::earnHint() {
+    if (state_.options.difficulty != Difficulty::Standard || state_.hintEarned) return;
+    const auto filled = std::count_if(state_.foundations.begin(), state_.foundations.end(), [](const auto& pile) { return !pile.empty(); });
+    switch (state_.mode) {
+    case GameMode::Klondike:
+    case GameMode::FreeCell: state_.hintEarned = filled == 4; break;
+    case GameMode::Spider: state_.hintEarned = filled > 0; break;
+    case GameMode::Pyramid:
+    case GameMode::TriPeaks:
+        state_.hintEarned = std::count_if(state_.tableau.begin(), state_.tableau.end(), [](const auto& pile) { return pile.empty(); }) >= 14;
+        break;
+    }
 }
 
 bool Game::draw() {
@@ -160,12 +179,40 @@ bool Game::autoMove(Location from) {
 }
 
 bool Game::undo() {
-    if (undo_.empty()) return false;
+    if (!canUndo()) return false;
+    const int used = state_.undosUsed + (state_.options.difficulty == Difficulty::Standard ? 1 : 0);
+    const bool earned = state_.hintEarned;
+    const int spent = state_.hintsUsed;
     state_ = std::move(undo_.back());
     undo_.pop_back();
+    state_.undosUsed = used;
+    state_.hintEarned = earned;
+    state_.hintsUsed = spent;
     return true;
 }
-bool Game::canUndo() const { return !undo_.empty(); }
+bool Game::canUndo() const { return !undo_.empty() && undosLeft() != 0; }
+int Game::undosLeft() const {
+    switch (state_.options.difficulty) {
+    case Difficulty::Casual: return -1;
+    case Difficulty::Standard: return std::max(0, 2 - state_.undosUsed);
+    case Difficulty::Expert: return 0;
+    }
+    return -1;
+}
+int Game::hintsLeft() const {
+    switch (state_.options.difficulty) {
+    case Difficulty::Casual: return -1;
+    case Difficulty::Standard: return std::max(0, 1 + (state_.hintEarned ? 1 : 0) - state_.hintsUsed);
+    case Difficulty::Expert: return 0;
+    }
+    return -1;
+}
+std::optional<std::pair<Location, Location>> Game::takeHint() {
+    if (hintsLeft() == 0) return std::nullopt;
+    const auto result = hint();
+    if (result && state_.options.difficulty == Difficulty::Standard) ++state_.hintsUsed;
+    return result;
+}
 bool Game::won() const {
     if (state_.mode == GameMode::Pyramid || state_.mode == GameMode::TriPeaks) return std::all_of(state_.tableau.begin(), state_.tableau.end(), [](const auto& pile) { return pile.empty(); });
     return std::all_of(state_.foundations.begin(), state_.foundations.end(), [](const auto& pile) { return pile.size() == 13; });

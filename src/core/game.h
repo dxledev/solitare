@@ -15,7 +15,10 @@ enum class GameMode { Klondike, Spider, FreeCell, Pyramid, TriPeaks };
 const char* modeName(GameMode mode);
 const char* modeId(GameMode mode);
 
+enum class Difficulty { Casual, Standard, Expert };
+
 struct GameOptions {
+    Difficulty difficulty = Difficulty::Casual;
     int drawCount = 1;
     int spiderSuits = 1;
     int pyramidRedeals = 2;
@@ -52,6 +55,9 @@ struct State {
     std::array<std::vector<Card>, 4> cells;
     std::vector<Card> removed;
     int redeals = 0;
+    int undosUsed = 0;
+    bool hintEarned = false;
+    int hintsUsed = 0;
     friend bool operator==(const State&, const State&) = default;
 };
 
@@ -70,6 +76,9 @@ public:
     bool autoMove(Location from);
     bool undo();
     bool canUndo() const;
+    int undosLeft() const; // -1 when unlimited
+    int hintsLeft() const; // -1 when unlimited
+    std::optional<std::pair<Location, Location>> takeHint();
     bool won() const;
     std::optional<std::pair<Location, Location>> hint() const;
     bool canMove(Location from, Location to) const;
@@ -82,6 +91,7 @@ private:
     std::vector<State> undo_;
     void remember();
     void incrementMoves();
+    void earnHint();
 };
 
 } // namespace solitare

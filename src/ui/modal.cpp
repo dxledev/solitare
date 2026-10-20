@@ -67,6 +67,12 @@ Modal::Modal(QWidget *parent, QWidget *background)
   variant_->setObjectName("gameVariant");
   variantLabel_ = new QLabel("Rules", dealControls_);
   form->addRow(variantLabel_, variant_);
+  difficulty_ = new ThemedCombo(dealControls_);
+  difficulty_->setObjectName("gameDifficulty");
+  difficulty_->addItem("Casual", int(Difficulty::Casual));
+  difficulty_->addItem("Standard", int(Difficulty::Standard));
+  difficulty_->addItem("Expert", int(Difficulty::Expert));
+  form->addRow("Difficulty", difficulty_);
   connect(mode_, &QComboBox::currentIndexChanged, this, [this] { updateVariants(); centerCard(); });
   layout->addWidget(dealControls_);
   dealControls_->hide();
@@ -88,6 +94,7 @@ void Modal::setTheme(const Theme &theme) {
   theme_ = theme;
   mode_->setTheme(theme);
   variant_->setTheme(theme);
+  difficulty_->setTheme(theme);
   if (isVisible())
     refreshSnapshot();
   update();
@@ -136,6 +143,7 @@ void Modal::openDeal(GameMode mode, const GameOptions &options) {
   if (mode == GameMode::Pyramid) value = options.pyramidRedeals;
   if (mode == GameMode::TriPeaks) value = options.tripeaksWraparound;
   variant_->setCurrentIndex(std::max(0, variant_->findData(value)));
+  difficulty_->setCurrentIndex(std::max(0, difficulty_->findData(int(options.difficulty))));
   dealControls_->show();
   centerCard();
   mode_->setFocus();
@@ -143,6 +151,7 @@ void Modal::openDeal(GameMode mode, const GameOptions &options) {
 GameMode Modal::selectedMode() const { return GameMode(mode_->currentData().toInt()); }
 GameOptions Modal::selectedOptions() const {
   GameOptions options;
+  options.difficulty = Difficulty(difficulty_->currentData().toInt());
   const int value = variant_->currentData().toInt();
   switch (selectedMode()) {
   case GameMode::Klondike: options.drawCount = value; break;
@@ -260,6 +269,7 @@ void Modal::beginDismiss(int choice) {
   pendingChoice_ = choice;
   mode_->hidePopup();
   variant_->hidePopup();
+  difficulty_->hidePopup();
   card_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
   motion_->animate(false);
 }

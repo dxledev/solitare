@@ -42,13 +42,13 @@ void Board::paintPile(QPainter &p, Location loc,
     p.drawText(r, Qt::AlignCenter,
                game_.state().mode == GameMode::Spider || game_.state().mode == GameMode::TriPeaks || game_.state().waste.empty() ? "Empty" : "Recycle");
   }
-  const int start =
-      loc.kind == Location::Tableau ? 0 : std::max(0, int(cards.size()) - 1);
+  const bool liftedTop = dragging_ && selected_ && selected_->kind == loc.kind && selected_->pile == loc.pile;
+  const int start = loc.kind == Location::Tableau ? 0 : std::max(0, int(cards.size()) - (liftedTop ? 2 : 1));
   for (int i = start; i < int(cards.size()); ++i) {
     Location current{loc.kind, loc.pile, i};
     bool select = selected_ && selected_->kind == loc.kind &&
                   selected_->pile == loc.pile &&
-                  (selected_->index < 0 || i >= selected_->index);
+                  (selected_->index < 0 ? i == int(cards.size()) - 1 : i >= selected_->index);
     if (dragging_ && select)
       continue;
     bool hint = hintFrom_ && hintFrom_->kind == loc.kind &&
@@ -205,11 +205,17 @@ void Board::keyPressEvent(QKeyEvent *event) {
 }
 void Board::showHint() {
   resetInteraction();
-  const auto hint = game_.hint();
+  if (game_.hintsLeft() == 0) {
+    emit message("No hints are available right now.");
+    update();
+    return;
+  }
+  const auto hint = game_.takeHint();
   if (hint) {
     hintFrom_ = hint->first;
     hintTo_ = hint->second;
     emit message(hint->first.kind == Location::Stock ? "Draw from the highlighted stock." : "Try the highlighted cards.");
+    emit changed();
   } else emit message("No moves available. Undo a move or start a new deal.");
   update();
 }
