@@ -152,13 +152,7 @@ void Window::applyTheme() {
                c("border"), c("surface_alt"), c("accent"), c("accent_text")));
   board_->setTheme(theme);
   modal_->setTheme(theme);
-  QPixmap icon(64, 64);
-  icon.fill(Qt::transparent);
-  QPainter p(&icon);
-  p.setRenderHint(QPainter::Antialiasing);
-  drawSuit(p, QRectF(8, 8, 48, 48), 2, theme.color("accent"));
-  p.end();
-  setWindowIcon(QIcon(icon));
+  setWindowIcon(QIcon::fromTheme("io.github.solitare"));
 }
 void Window::refresh() {
   int home = 0;
